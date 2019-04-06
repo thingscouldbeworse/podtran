@@ -1,14 +1,16 @@
 import os
-import json
 import sys
 
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
 
-scopes = ["https://www.googleapis.com/auth/youtube.force-ssl"]
+from googleapiclient.http import MediaFileUpload
 
-def main():
+scopes = ["https://www.googleapis.com/auth/youtube.upload"]
+
+def upload_vids(video_body, video):
+
     # Disable OAuthlib's HTTPS verification when running locally.
     # *DO NOT* leave this option enabled in production.
     os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
@@ -24,20 +26,32 @@ def main():
     youtube = googleapiclient.discovery.build(
         api_service_name, api_version, credentials=credentials)
 
-    request = youtube.captions().list(
-        part="id",
-        videoId="N7tDz_bCqSw"
+    request = youtube.videos().insert(
+        part="snippet, status",
+        body=video_body,
+
+        media_body=MediaFileUpload(video)
     )
     response = request.execute()
+
+    print(response)
+
+
+def main():
     
-    print(response)
-
-    request = youtube.captions().download(
-        id=response["items"][0]["id"]
+    title = sys.argv[2]
+    body=dict(
+      snippet=dict(
+        title=title,
+        description="",
+        tags="transcription"
+      ),
+        status=dict(
+        privacyStatus="private"
+      )
     )
-    response = request.execute()
 
-    print(response)
+    upload_vids(body, title)
 
 if __name__ == "__main__":
     main()
