@@ -1,58 +1,48 @@
 import os
-import sys
+import argparse
+from googleapiclient.errors import HttpError
 
-import google_auth_oauthlib.flow
-import googleapiclient.discovery
-import googleapiclient.errors
+import upload_util
 
-from googleapiclient.http import MediaFileUpload
+VIDEOS_DIR = 'episodes_convert/'
 
-scopes = ["https://www.googleapis.com/auth/youtube.upload"]
+def build_metadata():
+  videos = os.listdir(VIDEOS_DIR)
+  metadata_list = []
 
-def upload_vids(video_body, video):
-
-    # Disable OAuthlib's HTTPS verification when running locally.
-    # *DO NOT* leave this option enabled in production.
-    os.environ["OAUTHLIB_INSECURE_TRANSPORT"] = "1"
-
-    api_service_name = "youtube"
-    api_version = "v3"
-    client_secrets_file = sys.argv[1]
-
-    # Get credentials and create an API client
-    flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
-        client_secrets_file, scopes)
-    credentials = flow.run_console()
-    youtube = googleapiclient.discovery.build(
-        api_service_name, api_version, credentials=credentials)
-
-    request = youtube.videos().insert(
-        part="snippet, status",
-        body=video_body,
-
-        media_body=MediaFileUpload(video)
-    )
-    response = request.execute()
-
-    print(response)
+  for vid in videos:
+    if '.mp4' not in vid:
+      continue
+    metadata = {
+      'title': vid[:-4],
+      'file': VIDEOS_DIR + vid,
+      'category': 22,
+      'privacyStatus': 'private',
+      'description': 'podtran',
+      'keywords': 'transcription'
+    }
+    metadata_list.append(metadata)
+  return metadata_list
 
 
-def main():
-    
-    title = sys.argv[2]
-    body=dict(
-      snippet=dict(
-        title=title,
-        description="",
-        tags="transcription"
-      ),
-        status=dict(
-        privacyStatus="private"
-      )
-    )
+def upload_all(metadata_list, args):
+  youtube = upload_util.get_authenticated_service(args.secrets)
+  for metadata in metadata_list:
+    for key in metadata:
+      setattr(args, key, metadata[key])
+    try:
+      upload_util.initialize_upload(youtube, args)
+    except HttpError as e:
+      print(('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content)))
 
-    upload_vids(body, title)
 
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--secrets', required=True, help='JSON secrets file')
+  args = parser.parse_args()
+
+  metadata_total = build_metadata()
+
+  upload_all(metadata_total, args)
+  
 
