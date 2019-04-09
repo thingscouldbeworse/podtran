@@ -45,8 +45,6 @@ def upload_all(metadata_list, args):
         error_json = json.loads(e.content.decode('utf8'))
       except:
         print(('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content)))
-        print(e.content.decode("utf8"))
-        print(json.loads(e.content.decode("utf8")))
         sys.exit(1)
       print(error_json["error"]["errors"][0]["reason"])
       sys.exit(1)
