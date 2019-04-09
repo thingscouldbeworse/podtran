@@ -1,5 +1,8 @@
 import os
+import sys
 import argparse
+import json
+from pathlib import Path
 from googleapiclient.errors import HttpError
 
 import upload_util
@@ -11,10 +14,14 @@ def build_metadata():
   metadata_list = []
 
   for vid in videos:
+    title = vid[:-4]
     if '.mp4' not in vid:
       continue
+    if title + ".lock" in videos:
+      print("Skipping %s"%title)
+      continue
     metadata = {
-      'title': vid[:-4],
+      'title': title,
       'file': VIDEOS_DIR + vid,
       'category': 22,
       'privacyStatus': 'private',
@@ -32,8 +39,17 @@ def upload_all(metadata_list, args):
       setattr(args, key, metadata[key])
     try:
       upload_util.initialize_upload(youtube, args)
+      Path(VIDEOS_DIR + metadata["title"] + ".lock").touch()
     except HttpError as e:
-      print(('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content)))
+      try:
+        error_json = json.loads(e.content.decode('utf8'))
+      except:
+        print(('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content)))
+        print(e.content.decode("utf8"))
+        print(json.loads(e.content.decode("utf8")))
+        sys.exit(1)
+      print(error_json["error"]["errors"][0]["reason"])
+      sys.exit(1)
 
 
 if __name__ == '__main__':
