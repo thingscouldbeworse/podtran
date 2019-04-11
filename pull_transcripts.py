@@ -7,6 +7,8 @@ import google_auth_oauthlib.flow
 import googleapiclient.discovery
 import googleapiclient.errors
 
+TRANSCRIPTS_DIR = 'transcripts/'
+
 scopes = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 
 def auth_with_api(client_secrets_file):
@@ -41,15 +43,24 @@ def get_all_vids(youtube):
   )
   response = request.execute()
 
+  existing_transcripts = os.listdir(TRANSCRIPTS_DIR)
+
   uploads = []
   for video in response["items"]:
-    print(video["contentDetails"]["videoId"])
+    for existing in existing_transcripts:
+      if video["snippet"]["title"] in existing:
+        print("transcript exists for %s, skipping"%video["snippet"]["title"])
+        continue
     if video["snippet"]["description"] == "podtran":
-      uploads.append(video["contentDetails"]["videoId"])
+      uploads.append([
+        video["contentDetails"]["videoId"],
+        video["snippet"]["title"]
+      ])
 
-  print(uploads)
   for upload in uploads:
-    get_one_transcript(upload, youtube)
+    transcript = get_one_transcript(upload[0], youtube)
+    with open(TRANSCRIPTS_DIR + upload[1] + ".txt", 'w') as file_out:
+      file_out.write(transcript)
 
 
 def get_one_transcript(video_id, youtube):
@@ -60,18 +71,20 @@ def get_one_transcript(video_id, youtube):
   )
   response = request.execute()
 
-  request = youtube.captions().download(
-      id=response["items"][0]["id"]
-  )
-  response = request.execute()
-  print(response)
+  if (len(response["items"]) < 1):
+    response = "No transcript avaliable"
+  else:
+    request = youtube.captions().download(
+        id=response["items"][0]["id"]
+    )
+    response = request.execute().decode("utf8")
+  return response
   
-
 
 def main():
   youtube = auth_with_api(sys.argv[1])
   get_all_vids(youtube)
-  #get_one_transcript('N7tDz_bCqSw', youtube)
+
 
 if __name__ == "__main__":
     main()
