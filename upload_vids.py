@@ -64,7 +64,10 @@ if __name__ == '__main__':
     metadata_total = build_metadata()
     error_message = upload_all(metadata_total, args)
     if error_message == "quotaExceeded":
-      time.sleep(60*60*4) # 4 hours
+      print("Sleeping until trying uploads again")
+      for i in range(8,0,-1): # 8*30mins = 4 hours
+        print("retrying in " + str(i/2) + " hours", flush=True)
+        time.sleep(60*30) # 30 minutes
       done = False
     else:
       done = True
