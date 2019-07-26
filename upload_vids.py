@@ -2,6 +2,7 @@ import os
 import sys
 import argparse
 import json
+import time
 from pathlib import Path
 from googleapiclient.errors import HttpError
 
@@ -46,8 +47,9 @@ def upload_all(metadata_list, args):
       except:
         print(('An HTTP error %d occurred:\n%s' % (e.resp.status, e.content)))
         sys.exit(1)
-      print(error_json["error"]["errors"][0]["reason"])
-      sys.exit(1)
+      error_message = error_json["error"]["errors"][0]["reason"]
+      print(error_message)
+      return error_message
 
 
 if __name__ == '__main__':
@@ -55,8 +57,14 @@ if __name__ == '__main__':
   parser.add_argument('--secrets', required=True, help='JSON secrets file')
   args = parser.parse_args()
 
-  metadata_total = build_metadata()
-
-  upload_all(metadata_total, args)
   
 
+  done = False
+  while not done:
+    metadata_total = build_metadata()
+    error_message = upload_all(metadata_total, args)
+    if error_message == "quotaExceeded":
+      time.sleep(60*60*4) # 4 hours
+      done = False
+    else:
+      done = True
