@@ -2,6 +2,7 @@ import os
 import json
 import sys
 import pprint
+import argparse
 
 import google_auth_oauthlib.flow
 import googleapiclient.discovery
@@ -64,7 +65,6 @@ def get_all_vids(youtube):
 
 
 def get_one_transcript(video_id, youtube):
-
   request = youtube.captions().list(
     part="id",
     videoId=video_id
@@ -82,8 +82,12 @@ def get_one_transcript(video_id, youtube):
   
 
 def main():
-  youtube = auth_with_api(sys.argv[1])
+  parser = argparse.ArgumentParser()
+  parser.add_argument('--secrets', required=True, help='JSON secrets file')
+  args = parser.parse_args()
+  youtube = auth_with_api(args.secrets)
   get_all_vids(youtube)
+
 
 
 if __name__ == "__main__":

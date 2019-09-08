@@ -3,6 +3,7 @@ import sys
 import argparse
 import json
 import time
+import datetime
 from pathlib import Path
 from googleapiclient.errors import HttpError
 
@@ -33,6 +34,22 @@ def build_metadata():
   return metadata_list
 
 
+def upload_all_with_pauses(metadata_list, args):
+  upload_limit = 5
+  upload_all(metadata_list[:upload_limit], args)
+  date_begin = datetime.date.today()
+  print("Sleeping until trying uploads again")
+  done = False
+  while not done:
+    if (datetime.date.today() > date_begin):
+      metadata_list = build_metadata()
+      upload_all(metadata_list[:upload_limit], args)
+    else:
+      for i in range(8,0,-1): # 8*30mins = 4 hours
+        print("retrying in " + str(i/2) + " hours", flush=True)
+        time.sleep(60*30) # 30 minutes
+
+
 def upload_all(metadata_list, args):
   youtube = upload_util.get_authenticated_service(args.secrets)
   for metadata in metadata_list:
@@ -57,17 +74,6 @@ if __name__ == '__main__':
   parser.add_argument('--secrets', required=True, help='JSON secrets file')
   args = parser.parse_args()
 
-  
 
-  done = False
-  while not done:
-    metadata_total = build_metadata()
-    error_message = upload_all(metadata_total, args)
-    if error_message == "quotaExceeded":
-      print("Sleeping until trying uploads again")
-      for i in range(8,0,-1): # 8*30mins = 4 hours
-        print("retrying in " + str(i/2) + " hours", flush=True)
-        time.sleep(60*30) # 30 minutes
-      done = False
-    else:
-      done = True
+  metadata_total = build_metadata()
+  upload_all_with_pauses(metadata_total, args)
